@@ -6,9 +6,9 @@ import (
 
 	"github.com/DreamvatLab/go/xbytes"
 	"github.com/DreamvatLab/go/xerr"
+	"github.com/DreamvatLab/go/xhttp"
 	"github.com/DreamvatLab/go/xlog"
 	"github.com/DreamvatLab/go/xredis"
-	"github.com/DreamvatLab/go/xutils"
 	"github.com/DreamvatLab/oauth2go/model"
 	"github.com/DreamvatLab/oauth2go/security"
 	"github.com/DreamvatLab/oauth2go/store"
@@ -46,7 +46,7 @@ func (x *RedisClientStore) GetClient(clientID string) model.IClient {
 		return nil
 	}
 
-	if xutils.IsBase64String(client.Secret) {
+	if xhttp.IsBase64String(client.Secret) {
 		client.Secret = x.SecretEncryptor.DecryptStringToString(client.Secret)
 	}
 
