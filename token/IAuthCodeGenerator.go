@@ -1,6 +1,6 @@
 package token
 
-import "github.com/Lukiya/oauth2go/core"
+import "github.com/DreamvatLab/oauth2go/core"
 
 type IAuthCodeGenerator interface {
 	Generate() string

@@ -5,7 +5,7 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/syncfuture/go/serr"
+	"github.com/DreamvatLab/go/xerr"
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/clientcredentials"
 )
@@ -22,11 +22,11 @@ func (x *ClientCredential) Token() (*oauth2.Token, error) {
 		// Request a new token if there is no token or the token has expired
 		x.AccessToken, err = x.Config.Token(context.Background())
 		if err != nil {
-			return x.AccessToken, serr.WithStack(err)
+			return x.AccessToken, xerr.WithStack(err)
 		}
 	}
 
-	return x.AccessToken, serr.WithStack(err)
+	return x.AccessToken, xerr.WithStack(err)
 }
 
 func (x *ClientCredential) Client(context context.Context) *http.Client {

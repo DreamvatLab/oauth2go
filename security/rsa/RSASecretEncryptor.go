@@ -3,18 +3,19 @@ package rsa
 import (
 	"encoding/base64"
 
-	"github.com/Lukiya/oauth2go/security"
-	ss "github.com/syncfuture/go/ssecurity"
-	"github.com/syncfuture/go/u"
+	"github.com/DreamvatLab/go/xbytes"
+	"github.com/DreamvatLab/go/xerr"
+	"github.com/DreamvatLab/go/xsecurity"
+	"github.com/DreamvatLab/oauth2go/security"
 )
 
 type RSASecretEncryptor struct {
-	encryptor *ss.RSAEncryptor
+	encryptor *xsecurity.RSAEncryptor
 }
 
 func NewRSASecretEncryptor(certPath string) security.ISecretEncryptor {
-	rsaEncryptor, err := ss.CreateRSAEncryptorFromFile(certPath)
-	u.LogFatal(err)
+	rsaEncryptor, err := xsecurity.CreateRSAEncryptorFromFile(certPath)
+	xerr.FatalIfErr(err)
 
 	return &RSASecretEncryptor{
 		encryptor: rsaEncryptor,
@@ -23,7 +24,7 @@ func NewRSASecretEncryptor(certPath string) security.ISecretEncryptor {
 
 func (x *RSASecretEncryptor) EncryptStringToString(input string) string {
 	r, err := x.encryptor.EncryptString(input)
-	if u.LogError(err) {
+	if xerr.LogError(err) {
 		return input
 	}
 
@@ -32,7 +33,7 @@ func (x *RSASecretEncryptor) EncryptStringToString(input string) string {
 
 func (x *RSASecretEncryptor) EncryptBytesToString(input []byte) string {
 	r, err := x.encryptor.Encrypt(input)
-	if u.LogError(err) {
+	if xerr.LogError(err) {
 		return base64.StdEncoding.EncodeToString(input)
 	}
 
@@ -41,7 +42,7 @@ func (x *RSASecretEncryptor) EncryptBytesToString(input []byte) string {
 
 func (x *RSASecretEncryptor) EncryptBytesToBytes(input []byte) []byte {
 	r, err := x.encryptor.Encrypt(input)
-	if u.LogError(err) {
+	if xerr.LogError(err) {
 		return input
 	}
 
@@ -50,7 +51,7 @@ func (x *RSASecretEncryptor) EncryptBytesToBytes(input []byte) []byte {
 
 func (x *RSASecretEncryptor) DecryptStringToString(input string) string {
 	r, err := x.encryptor.DecryptString(input)
-	if u.LogError(err) {
+	if xerr.LogError(err) {
 		return input
 	}
 
@@ -59,7 +60,7 @@ func (x *RSASecretEncryptor) DecryptStringToString(input string) string {
 
 func (x *RSASecretEncryptor) DecryptBytesToBytes(input []byte) []byte {
 	r, err := x.encryptor.Decrypt(input)
-	if u.LogError(err) {
+	if xerr.LogError(err) {
 		return input
 	}
 
@@ -68,13 +69,13 @@ func (x *RSASecretEncryptor) DecryptBytesToBytes(input []byte) []byte {
 
 func (x *RSASecretEncryptor) DecryptStringToBytes(input string) []byte {
 	bytes, err := base64.StdEncoding.DecodeString(input)
-	if u.LogError(err) {
-		return u.StrToBytes(input)
+	if xerr.LogError(err) {
+		return xbytes.StrToBytes(input)
 	}
 
 	r, err := x.encryptor.Decrypt(bytes)
-	if u.LogError(err) {
-		return u.StrToBytes(input)
+	if xerr.LogError(err) {
+		return xbytes.StrToBytes(input)
 	}
 
 	return r

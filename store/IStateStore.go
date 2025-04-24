@@ -3,8 +3,8 @@ package store
 import (
 	"time"
 
+	"github.com/DreamvatLab/go/xerr"
 	"github.com/muesli/cache2go"
-	"github.com/syncfuture/go/u"
 )
 
 const _clientStateKey = "ClientState"
@@ -36,7 +36,7 @@ func (x *DefaultStateStore) Save(key, value string, expireSeconds int) {
 
 func (x *DefaultStateStore) GetThenRemove(key string) string {
 	cacheItem, err := x.cache.Delete(key)
-	if err == cache2go.ErrKeyNotFound || u.LogError(err) {
+	if err == cache2go.ErrKeyNotFound || xerr.LogError(err) {
 		return ""
 	}
 

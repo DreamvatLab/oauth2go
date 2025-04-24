@@ -4,7 +4,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/Lukiya/oauth2go/model"
+	"github.com/DreamvatLab/oauth2go/model"
 	"github.com/stretchr/testify/assert"
 )
 

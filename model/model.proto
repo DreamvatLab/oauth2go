@@ -2,7 +2,7 @@ syntax = "proto3";
 
 package product;
 
-option go_package = "github.com/Lukiya/oauth2go/go/model";
+option go_package = "github.com/DreamvatLab/oauth2go/go/model";
 
 message Client {
     string ID = 1;

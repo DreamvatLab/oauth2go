@@ -1,7 +1,7 @@
 package store
 
 import (
-	"github.com/Lukiya/oauth2go/model"
+	"github.com/DreamvatLab/oauth2go/model"
 )
 
 type IClientStore interface {

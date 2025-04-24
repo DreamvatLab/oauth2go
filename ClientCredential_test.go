@@ -7,8 +7,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/DreamvatLab/go/xconfig"
 	"github.com/stretchr/testify/assert"
-	config "github.com/syncfuture/go/sconfig"
 )
 
 var (
@@ -21,7 +21,7 @@ func init() {
 			return url.Parse("http://localhost:8888")
 		},
 	}
-	cp := config.NewJsonConfigProvider()
+	cp := xconfig.NewJsonConfigProvider()
 	cp.GetStruct("OAuth", &_cc)
 }
 

@@ -3,7 +3,7 @@ package server
 import (
 	"net/http"
 
-	"github.com/syncfuture/go/u"
+	"github.com/DreamvatLab/go/xbytes"
 	"github.com/valyala/fasthttp"
 )
 
@@ -52,9 +52,9 @@ func (x *defaultRouter) ServeFiles(handler fasthttp.RequestHandler) {
 }
 
 func (x *defaultRouter) Serve(ctx *fasthttp.RequestCtx) {
-	path := u.BytesToStr(ctx.URI().Path()) // Todo: use pool
+	path := xbytes.BytesToStr(ctx.URI().Path()) // Todo: use pool
 	if pathRoute, ok := x.routingTable[path]; ok {
-		method := u.BytesToStr(ctx.Method()) // Todo: use pool
+		method := xbytes.BytesToStr(ctx.Method()) // Todo: use pool
 		if handler, ok := pathRoute[method]; ok {
 			handler(ctx)
 		}

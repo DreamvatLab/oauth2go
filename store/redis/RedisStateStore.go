@@ -4,11 +4,11 @@ import (
 	"context"
 	"time"
 
-	"github.com/Lukiya/oauth2go/security"
-	"github.com/Lukiya/oauth2go/store"
-	redis "github.com/redis/go-redis/v9"
-	"github.com/syncfuture/go/sredis"
-	"github.com/syncfuture/go/u"
+	"github.com/DreamvatLab/go/xerr"
+	"github.com/DreamvatLab/go/xredis"
+	"github.com/DreamvatLab/oauth2go/security"
+	"github.com/DreamvatLab/oauth2go/store"
+	"github.com/redis/go-redis/v9"
 )
 
 type RedisStateStore struct {
@@ -17,17 +17,17 @@ type RedisStateStore struct {
 	RedisClient     redis.UniversalClient
 }
 
-func NewRedisStateStore(prefix string, secretEncryptor security.ISecretEncryptor, config *sredis.RedisConfig) store.ITokenStore {
+func NewRedisStateStore(prefix string, secretEncryptor security.ISecretEncryptor, config *xredis.RedisConfig) store.ITokenStore {
 	return &RedisTokenStore{
 		Prefix:          prefix,
 		SecretEncryptor: secretEncryptor,
-		RedisClient:     sredis.NewClient(config),
+		RedisClient:     xredis.NewClient(config),
 	}
 }
 
 func (x *RedisStateStore) Save(key, value string, expireSeconds int) {
 	err := x.RedisClient.Set(context.Background(), x.Prefix+key, value, time.Duration(expireSeconds)*time.Second).Err()
-	u.LogError(err)
+	xerr.LogError(err)
 }
 func (x *RedisStateStore) GetThenRemove(key string) (r string) {
 	ctx := context.Background()
@@ -35,7 +35,7 @@ func (x *RedisStateStore) GetThenRemove(key string) (r string) {
 	r = x.RedisClient.Get(ctx, key).String()
 	if r != "" {
 		err := x.RedisClient.Del(ctx, key).Err()
-		u.LogError(err)
+		xerr.LogError(err)
 	}
 	return
 }

@@ -8,17 +8,17 @@ import (
 	"net/url"
 	"strings"
 
-	"github.com/Lukiya/oauth2go/core"
-	"github.com/Lukiya/oauth2go/model"
-	"github.com/Lukiya/oauth2go/security"
-	"github.com/Lukiya/oauth2go/store"
-	"github.com/Lukiya/oauth2go/token"
+	"github.com/DreamvatLab/go/xbytes"
+	"github.com/DreamvatLab/go/xerr"
+	"github.com/DreamvatLab/go/xlog"
+	"github.com/DreamvatLab/go/xsecurity"
+	"github.com/DreamvatLab/go/xutils"
+	"github.com/DreamvatLab/oauth2go/core"
+	"github.com/DreamvatLab/oauth2go/model"
+	"github.com/DreamvatLab/oauth2go/security"
+	"github.com/DreamvatLab/oauth2go/store"
+	"github.com/DreamvatLab/oauth2go/token"
 	"github.com/pascaldekloe/jwt"
-	"github.com/syncfuture/go/serr"
-	"github.com/syncfuture/go/sid"
-	"github.com/syncfuture/go/slog"
-	"github.com/syncfuture/go/ssecurity"
-	"github.com/syncfuture/go/u"
 	"github.com/valyala/fasthttp"
 )
 
@@ -78,28 +78,28 @@ type (
 		AuthCodeGenerator      token.IAuthCodeGenerator
 		TokenGenerator         token.ITokenGenerator
 		ClaimsGenerator        token.ITokenClaimsGenerator
-		CookieEncryptor        ssecurity.ICookieEncryptor
+		CookieEncryptor        xsecurity.ICookieEncryptor
 	}
 )
 
 func (x *TokenHost) BuildTokenHost() {
 	if x.ClientStore == nil {
-		slog.Fatal("ClientStore cannot be nil")
+		xlog.Fatal("ClientStore cannot be nil")
 	}
 	if x.TokenStore == nil {
-		slog.Fatal("TokenStore cannot be nil")
+		xlog.Fatal("TokenStore cannot be nil")
 	}
 	if x.PrivateKey == nil {
-		slog.Fatal("PrivateKey cannot be nil")
+		xlog.Fatal("PrivateKey cannot be nil")
 	}
 	if x.ClaimsGenerator == nil {
-		slog.Fatal("ClaimsGenerator cannot be nil")
+		xlog.Fatal("ClaimsGenerator cannot be nil")
 	}
 	if x.CookieEncryptor == nil {
-		slog.Fatal("CookieEncryptor cannot be nil")
+		xlog.Fatal("CookieEncryptor cannot be nil")
 	}
 	// if x.CookieProtector == nil {
-	// 	slog.Fatal("CookieManager cannot be nil")
+	// 	xlog.Fatal("CookieManager cannot be nil")
 	// }
 	if x.AuthCookieName == "" {
 		x.AuthCookieName = "go.auth"
@@ -175,11 +175,11 @@ func (x *TokenHost) GetPrivateKey() *rsa.PrivateKey {
 
 // AuthorizeRequestHandler handle authorize request
 func (x *TokenHost) AuthorizeRequestHandler(ctx *fasthttp.RequestCtx) {
-	respType := u.BytesToStr(ctx.FormValue(core.Form_ResponseType))
-	clientID := u.BytesToStr(ctx.FormValue(core.Form_ClientID))
-	redirectURI := u.BytesToStr(ctx.FormValue(core.Form_RedirectUri))
-	scopesStr := u.BytesToStr(ctx.FormValue(core.Form_Scope))
-	state := u.BytesToStr(ctx.FormValue(core.Form_State))
+	respType := xbytes.BytesToStr(ctx.FormValue(core.Form_ResponseType))
+	clientID := xbytes.BytesToStr(ctx.FormValue(core.Form_ClientID))
+	redirectURI := xbytes.BytesToStr(ctx.FormValue(core.Form_RedirectUri))
+	scopesStr := xbytes.BytesToStr(ctx.FormValue(core.Form_Scope))
+	state := xbytes.BytesToStr(ctx.FormValue(core.Form_State))
 	// surferID := x.getSurferID(ctx)
 
 	// verify client
@@ -196,7 +196,7 @@ func (x *TokenHost) AuthorizeRequestHandler(ctx *fasthttp.RequestCtx) {
 
 	username := x.getEncryptedCookie(ctx, x.AuthCookieName)
 	if username == "" {
-		returnURL := url.QueryEscape(u.BytesToStr(ctx.URI().RequestURI()))
+		returnURL := url.QueryEscape(xbytes.BytesToStr(ctx.URI().RequestURI()))
 		targetURL := fmt.Sprintf("%s?%s=%s", x.LoginEndpoint, core.Form_ReturnUrl, returnURL)
 		core.Redirect(ctx, targetURL)
 		return
@@ -238,25 +238,25 @@ func (x *TokenHost) AuthorizationCodeRequestHandler(ctx *fasthttp.RequestCtx, cl
 	}
 
 	// pkce required
-	codeChallenge := u.BytesToStr(ctx.FormValue(core.Form_CodeChallenge))
+	codeChallenge := xbytes.BytesToStr(ctx.FormValue(core.Form_CodeChallenge))
 
 	if codeChallenge == "" {
 		// client didn't provide pkce challenge, write error
 		err := errors.New(core.Err_invalid_request)
 		errDesc := errors.New("code challenge is required")
-		slog.Warn(errDesc.Error())
+		xlog.Warn(errDesc.Error())
 		x.writeError(ctx, http.StatusBadRequest, err, errDesc)
 		return
 	}
 
 	// client provided pkce challenge
-	codeChallengeMethod := u.BytesToStr(ctx.FormValue(core.Form_CodeChallengeMethod))
+	codeChallengeMethod := xbytes.BytesToStr(ctx.FormValue(core.Form_CodeChallengeMethod))
 	if codeChallengeMethod == "" {
 		codeChallengeMethod = core.Pkce_Plain
 	} else if codeChallengeMethod != core.Pkce_Plain && codeChallengeMethod != core.Pkce_S256 {
 		err := errors.New(core.Err_invalid_request)
 		errDesc := errors.New("transform algorithm not supported")
-		slog.Warn(errDesc.Error())
+		xlog.Warn(errDesc.Error())
 		x.writeError(ctx, http.StatusBadRequest, err, errDesc)
 		return
 	}
@@ -324,8 +324,8 @@ func (x *TokenHost) ImplicitTokenRequestHandler(ctx *fasthttp.RequestCtx, client
 // TokenRequestHandler handle token request
 func (x *TokenHost) TokenRequestHandler(ctx *fasthttp.RequestCtx) {
 	// get parametes from request
-	var grantTypeStr = u.BytesToStr(ctx.FormValue(core.Form_GrantType))
-	var scopesStr = u.BytesToStr(ctx.FormValue(core.Form_Scope))
+	var grantTypeStr = xbytes.BytesToStr(ctx.FormValue(core.Form_GrantType))
+	var scopesStr = xbytes.BytesToStr(ctx.FormValue(core.Form_Scope))
 
 	credentials, err, errDesc := x.ClientValidator.ExractClientCredentials(ctx)
 	if err != nil {
@@ -364,15 +364,15 @@ func (x *TokenHost) TokenRequestHandler(ctx *fasthttp.RequestCtx) {
 	case core.GrantType_RefreshToken:
 		x.handleRefreshTokenRequest(ctx, client)
 	default:
-		slog.Warn(core.Err_unsupported_grant_type + ":" + grantTypeStr)
+		xlog.Warn(core.Err_unsupported_grant_type + ":" + grantTypeStr)
 		x.writeError(ctx, http.StatusBadRequest, errors.New(core.Err_unsupported_grant_type), nil)
 	}
 }
 
 // EndSessionRequestHandler handle end session request
 func (x *TokenHost) EndSessionRequestHandler(ctx *fasthttp.RequestCtx) {
-	clientID := u.BytesToStr(ctx.FormValue(core.Form_ClientID))
-	redirectURI := u.BytesToStr(ctx.FormValue(core.Form_RedirectUri))
+	clientID := xbytes.BytesToStr(ctx.FormValue(core.Form_ClientID))
+	redirectURI := xbytes.BytesToStr(ctx.FormValue(core.Form_RedirectUri))
 	// verify client
 	_, err, errDesc := x.ClientValidator.VerifyRedirectURI(
 		clientID,
@@ -384,7 +384,7 @@ func (x *TokenHost) EndSessionRequestHandler(ctx *fasthttp.RequestCtx) {
 	}
 
 	// save client state for clear token verification
-	state := u.BytesToStr(ctx.FormValue(core.Form_State))
+	state := xbytes.BytesToStr(ctx.FormValue(core.Form_State))
 	endSessionID := core.GenerateID()
 	if state != "" {
 		x.StateStore.Save(clientID+":"+endSessionID, state, 60)
@@ -412,25 +412,25 @@ func (x *TokenHost) EndSessionRequestHandler(ctx *fasthttp.RequestCtx) {
 
 // ClearTokenHandler handle clear token request
 func (x *TokenHost) ClearTokenRequestHandler(ctx *fasthttp.RequestCtx) {
-	state := u.BytesToStr(ctx.FormValue(core.Form_State))
+	state := xbytes.BytesToStr(ctx.FormValue(core.Form_State))
 	if state == "" {
 		x.writeError(ctx, http.StatusBadRequest, errors.New("missing state"), nil)
 		return
 	}
-	endSessionID := u.BytesToStr(ctx.FormValue(core.Form_EndSessionID))
+	endSessionID := xbytes.BytesToStr(ctx.FormValue(core.Form_EndSessionID))
 	if endSessionID == "" {
 		x.writeError(ctx, http.StatusBadRequest, errors.New("missing es_id"), nil)
 		return
 	}
-	oldRefreshToken := u.BytesToStr(ctx.FormValue(core.Form_RefreshToken))
+	oldRefreshToken := xbytes.BytesToStr(ctx.FormValue(core.Form_RefreshToken))
 	if oldRefreshToken == "" {
 		x.writeError(ctx, http.StatusBadRequest, errors.New("missing refresh token"), nil)
 		return
 	}
 
 	credential := &model.Credential{
-		Username: u.BytesToStr(ctx.FormValue(core.Form_ClientID)),
-		Password: u.BytesToStr(ctx.FormValue(core.Form_ClientSecret)),
+		Username: xbytes.BytesToStr(ctx.FormValue(core.Form_ClientID)),
+		Password: xbytes.BytesToStr(ctx.FormValue(core.Form_ClientSecret)),
 	}
 
 	// verify client
@@ -452,15 +452,15 @@ func (x *TokenHost) ClearTokenRequestHandler(ctx *fasthttp.RequestCtx) {
 }
 
 func (x *TokenHost) getEncryptedCookie(ctx *fasthttp.RequestCtx, name string) string {
-	r := u.BytesToStr(ctx.Request.Header.Cookie(name))
+	r := xbytes.BytesToStr(ctx.Request.Header.Cookie(name))
 
 	if r != "" {
 		err := x.CookieEncryptor.Decrypt(name, r, &r)
-		u.LogError(err)
+		xerr.LogError(err)
 	}
 
 	return r
-	// encryptedCookie := u.BytesToStr(ctx.Request.Header.Cookie(name))
+	// encryptedCookie := xbytes.BytesToStr(ctx.Request.Header.Cookie(name))
 	// if encryptedCookie == "" {
 	// 	return ""
 	// }
@@ -468,7 +468,7 @@ func (x *TokenHost) getEncryptedCookie(ctx *fasthttp.RequestCtx, name string) st
 	// var r string
 	// err := x.CookieProtector.Decode(name, encryptedCookie, &r)
 
-	// if u.LogError(err) {
+	// if xerr.LogError(err) {
 	// 	return ""
 	// }
 
@@ -491,7 +491,7 @@ func (x *TokenHost) getEncryptedCookie(ctx *fasthttp.RequestCtx, name string) st
 // 	}
 // 	ctx.Response.Header.SetCookie(authCookie)
 // } else {
-// 	u.LogError(err)
+// 	xerr.LogError(err)
 // }
 // }
 
@@ -536,15 +536,15 @@ func (x *TokenHost) handleClientCredentialsTokenRequest(ctx *fasthttp.RequestCtx
 // handleAuthorizationCodeTokenRequest handle authorization code token request
 func (x *TokenHost) handleAuthorizationCodeTokenRequest(ctx *fasthttp.RequestCtx, client model.IClient) {
 	// exchange token by using auhorization code
-	code := u.BytesToStr(ctx.FormValue(core.Form_Code))
-	// clientID := u.BytesToStr(ctx.FormValue(core.Form_ClientID))
-	redirectUri := u.BytesToStr(ctx.FormValue(core.Form_RedirectUri))
+	code := xbytes.BytesToStr(ctx.FormValue(core.Form_Code))
+	// clientID := xbytes.BytesToStr(ctx.FormValue(core.Form_ClientID))
+	redirectUri := xbytes.BytesToStr(ctx.FormValue(core.Form_RedirectUri))
 
 	tokenInfo := x.AuthorizationCodeStore.GetThenRemove(code)
 	if tokenInfo == nil {
 		err := errors.New(core.Err_invalid_request)
 		errDesc := errors.New("invalid authorization code")
-		slog.Warn(errDesc.Error())
+		xlog.Warn(errDesc.Error())
 		x.writeError(ctx, http.StatusBadRequest, err, errDesc)
 		return
 	}
@@ -553,8 +553,8 @@ func (x *TokenHost) handleAuthorizationCodeTokenRequest(ctx *fasthttp.RequestCtx
 	if client.GetID() != tokenInfo.ClientID {
 		err := errors.New(core.Err_invalid_request)
 		errDesc := errors.New("client id mismatch")
-		slog.Warnf("client id doesn't match detected: original '%s', current '%s'", tokenInfo.ClientID, client.GetID())
-		slog.Warn(errDesc.Error())
+		xlog.Warnf("client id doesn't match detected: original '%s', current '%s'", tokenInfo.ClientID, client.GetID())
+		xlog.Warn(errDesc.Error())
 		x.writeError(ctx, http.StatusBadRequest, err, errDesc)
 		return
 	}
@@ -562,7 +562,7 @@ func (x *TokenHost) handleAuthorizationCodeTokenRequest(ctx *fasthttp.RequestCtx
 	if redirectUri != tokenInfo.RedirectUri {
 		err := errors.New(core.Err_invalid_request)
 		errDesc := errors.New("redirect URI mismatch")
-		slog.Warnf("Redirect URI mismatch detected: original '%s', current '%s'", tokenInfo.RedirectUri, redirectUri)
+		xlog.Warnf("Redirect URI mismatch detected: original '%s', current '%s'", tokenInfo.RedirectUri, redirectUri)
 		x.writeError(ctx, http.StatusBadRequest, err, errDesc)
 		return
 	}
@@ -574,12 +574,12 @@ func (x *TokenHost) handleAuthorizationCodeTokenRequest(ctx *fasthttp.RequestCtx
 		return
 	}
 
-	codeVierifier := u.BytesToStr(ctx.FormValue(core.Form_CodeVerifier))
+	codeVierifier := xbytes.BytesToStr(ctx.FormValue(core.Form_CodeVerifier))
 	if codeVierifier == "" {
 		// client didn't provide code verifier, write error
 		err := errors.New(core.Err_invalid_request)
 		errDesc := errors.New("code verifier is missing")
-		slog.Warn(errDesc.Error())
+		xlog.Warn(errDesc.Error())
 		x.writeError(ctx, http.StatusBadRequest, err, errDesc)
 		return
 	}
@@ -587,12 +587,12 @@ func (x *TokenHost) handleAuthorizationCodeTokenRequest(ctx *fasthttp.RequestCtx
 	if !x.PkceValidator.Verify(codeVierifier, tokenInfo.CodeChallenge, tokenInfo.CodeChallengeMethod) {
 		err := errors.New(core.Err_invalid_grant)
 		errDesc := errors.New("code verifier is invalid")
-		slog.Warn(errDesc.Error())
+		xlog.Warn(errDesc.Error())
 		x.writeError(ctx, http.StatusBadRequest, err, errDesc)
 		return
 	}
 
-	oldRefreshToken := u.BytesToStr(ctx.FormValue(core.Form_RefreshToken))
+	oldRefreshToken := xbytes.BytesToStr(ctx.FormValue(core.Form_RefreshToken))
 	if oldRefreshToken != "" {
 		// received old refresh token, revoke it
 		x.TokenStore.RemoveRefreshToken(oldRefreshToken)
@@ -605,15 +605,15 @@ func (x *TokenHost) handleAuthorizationCodeTokenRequest(ctx *fasthttp.RequestCtx
 // handleResourceOwnerTokenRequest handle resource owner token request
 func (x *TokenHost) handleResourceOwnerTokenRequest(ctx *fasthttp.RequestCtx, client model.IClient, scopesStr string) {
 	// verify username & password
-	username := u.BytesToStr(ctx.FormValue(core.Form_Username))
-	password := u.BytesToStr(ctx.FormValue(core.Form_Password))
+	username := xbytes.BytesToStr(ctx.FormValue(core.Form_Username))
+	password := xbytes.BytesToStr(ctx.FormValue(core.Form_Password))
 	success, err := x.ResourceOwnerValidator.Verify(username, password)
 	if err != nil {
-		errID := sid.GenerateID()
-		slog.Errorf("%s: %+v", errID, err)
+		errID := xutils.GenerateStringID()
+		xlog.Errorf("%s: %+v", errID, err)
 
-		errBrief := serr.New("internel error")
-		errDesc := serr.New(errID)
+		errBrief := xerr.New("internel error")
+		errDesc := xerr.New(errID)
 		x.writeError(ctx, http.StatusInternalServerError, errBrief, errDesc)
 		return
 	}
@@ -628,18 +628,18 @@ func (x *TokenHost) handleResourceOwnerTokenRequest(ctx *fasthttp.RequestCtx, cl
 	} else {
 		err := errors.New(core.Err_invalid_grant)
 		errDesc := errors.New("username password doesn't match")
-		slog.Warn(errDesc.Error())
+		xlog.Warn(errDesc.Error())
 		x.writeError(ctx, http.StatusBadRequest, err, errDesc)
 	}
 }
 
 // handleRefreshTokenRequest handle refresh token request
 func (x *TokenHost) handleRefreshTokenRequest(ctx *fasthttp.RequestCtx, client model.IClient) {
-	refreshToken := u.BytesToStr(ctx.FormValue(core.Form_RefreshToken))
+	refreshToken := xbytes.BytesToStr(ctx.FormValue(core.Form_RefreshToken))
 	if refreshToken == "" {
 		err := errors.New(core.Err_invalid_request)
 		errDesc := errors.New("refresh token is missing")
-		slog.Warn(errDesc.Error())
+		xlog.Warn(errDesc.Error())
 		x.writeError(ctx, http.StatusBadRequest, err, errDesc)
 		return
 	}
@@ -648,7 +648,7 @@ func (x *TokenHost) handleRefreshTokenRequest(ctx *fasthttp.RequestCtx, client m
 	if tokenInfo == nil {
 		err := errors.New(core.Err_invalid_grant)
 		errDesc := errors.New("refresh token is invalid or expired or revoked")
-		slog.Warn(errDesc.Error())
+		xlog.Warn(errDesc.Error())
 		x.writeError(ctx, http.StatusBadRequest, err, errDesc)
 		return
 	}
@@ -656,7 +656,7 @@ func (x *TokenHost) handleRefreshTokenRequest(ctx *fasthttp.RequestCtx, client m
 	if client.GetID() != tokenInfo.ClientID {
 		err := errors.New(core.Err_invalid_request)
 		errDesc := fmt.Errorf("client id doesn't match, original: '%s', current: '%s'", tokenInfo.ClientID, client.GetID())
-		slog.Warn(errDesc.Error())
+		xlog.Warn(errDesc.Error())
 		x.writeError(ctx, http.StatusBadRequest, err, errDesc)
 		return
 	}

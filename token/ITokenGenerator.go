@@ -3,10 +3,10 @@ package token
 import (
 	"crypto/rsa"
 
-	"github.com/Lukiya/oauth2go/core"
-	"github.com/Lukiya/oauth2go/model"
+	"github.com/DreamvatLab/go/xbytes"
+	"github.com/DreamvatLab/oauth2go/core"
+	"github.com/DreamvatLab/oauth2go/model"
 	"github.com/pascaldekloe/jwt"
-	"github.com/syncfuture/go/u"
 	"github.com/valyala/fasthttp"
 )
 
@@ -41,7 +41,7 @@ func (x *DefaultTokenGenerator) GenerateAccessToken(ctx *fasthttp.RequestCtx, gr
 	}
 
 	token, err := claims.RSASign(x.SigningAlgorithm, x.PrivateKey)
-	return u.BytesToStr(token), err
+	return xbytes.BytesToStr(token), err
 }
 
 func (x *DefaultTokenGenerator) GenerateRefreshToken() string {

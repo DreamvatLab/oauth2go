@@ -6,9 +6,9 @@ import (
 	"encoding/base64"
 	"fmt"
 
+	"github.com/DreamvatLab/go/xbytes"
+	"github.com/DreamvatLab/go/xsync"
 	"github.com/sony/sonyflake"
-	"github.com/syncfuture/go/spool"
-	"github.com/syncfuture/go/u"
 	"github.com/valyala/fasthttp"
 )
 
@@ -89,12 +89,12 @@ const (
 var (
 	_idGenerator *sonyflake.Sonyflake
 	// _secureCookie *securecookie.SecureCookie
-	_bytesPool = spool.NewSyncBytesPool(64)
+	_bytesPool = xsync.NewSyncBytesPool(64)
 )
 
 func init() {
-	// hashKey := u.StrToBytes("JGQUQERAY5xPNVkliVMgGpVjLmjk2VDFAcP2gTI70Dw=")
-	// blockKey := u.StrToBytes("6MHdT1pG22lXjFcZzobwlQ==")
+	// hashKey := xbytes.StrToBytes("JGQUQERAY5xPNVkliVMgGpVjLmjk2VDFAcP2gTI70Dw=")
+	// blockKey := xbytes.StrToBytes("6MHdT1pG22lXjFcZzobwlQ==")
 	// _secureCookie = securecookie.New(hashKey, blockKey)
 	_idGenerator = sonyflake.NewSonyflake(sonyflake.Settings{})
 }
@@ -104,7 +104,7 @@ func init() {
 // This function is used in PKCE to generate the code_challenge.
 func ToSHA256Base64URL(in string) string {
 	h := sha256.New()
-	h.Write(u.StrToBytes(in))
+	h.Write(xbytes.StrToBytes(in))
 	r := h.Sum(nil)
 
 	return base64.RawURLEncoding.EncodeToString(r)
@@ -122,7 +122,7 @@ func Redirect(ctx *fasthttp.RequestCtx, url string) {
 }
 
 // func GetCookie(ctx *fasthttp.RequestCtx, key string) string {
-// 	encryptedCookie := u.BytesToStr(ctx.Request.Header.Cookie(key))
+// 	encryptedCookie := xbytes.BytesToStr(ctx.Request.Header.Cookie(key))
 // 	if encryptedCookie == "" {
 // 		return ""
 // 	}
@@ -130,7 +130,7 @@ func Redirect(ctx *fasthttp.RequestCtx, url string) {
 // 	var r string
 // 	err := _secureCookie.Decode(key, encryptedCookie, &r)
 
-// 	if u.LogError(err) {
+// 	if xerr.LogError(err) {
 // 		return ""
 // 	}
 
@@ -151,7 +151,7 @@ func Redirect(ctx *fasthttp.RequestCtx, url string) {
 // 		ctx.Response.Header.SetCookie(authCookie)
 // 		defer fasthttp.ReleaseCookie(authCookie)
 // 	} else {
-// 		u.LogError(err)
+// 		xerr.LogError(err)
 // 	}
 // }
 

@@ -4,13 +4,15 @@ import (
 	"context"
 	"encoding/json"
 
-	"github.com/Lukiya/oauth2go/model"
-	"github.com/Lukiya/oauth2go/security"
-	"github.com/Lukiya/oauth2go/store"
-	redis "github.com/redis/go-redis/v9"
-	log "github.com/syncfuture/go/slog"
-	"github.com/syncfuture/go/sredis"
-	"github.com/syncfuture/go/u"
+	"github.com/DreamvatLab/go/xbytes"
+	"github.com/DreamvatLab/go/xerr"
+	"github.com/DreamvatLab/go/xlog"
+	"github.com/DreamvatLab/go/xredis"
+	"github.com/DreamvatLab/go/xutils"
+	"github.com/DreamvatLab/oauth2go/model"
+	"github.com/DreamvatLab/oauth2go/security"
+	"github.com/DreamvatLab/oauth2go/store"
+	"github.com/redis/go-redis/v9"
 )
 
 type RedisClientStore struct {
@@ -19,11 +21,11 @@ type RedisClientStore struct {
 	RedisClient     redis.UniversalClient
 }
 
-func NewRedisClientStore(key string, secretEncryptor security.ISecretEncryptor, config *sredis.RedisConfig) store.IClientStore {
+func NewRedisClientStore(key string, secretEncryptor security.ISecretEncryptor, config *xredis.RedisConfig) store.IClientStore {
 	return &RedisClientStore{
 		Key:             key,
 		SecretEncryptor: secretEncryptor,
-		RedisClient:     sredis.NewClient(config),
+		RedisClient:     xredis.NewClient(config),
 	}
 }
 
@@ -31,20 +33,20 @@ func (x *RedisClientStore) GetClient(clientID string) model.IClient {
 	jsonBytes, err := x.RedisClient.HGet(context.Background(), x.Key, clientID).Bytes()
 	if err != nil {
 		if err.Error() == "redis: nil" {
-			log.Warnf("client id: '%s' doesn't exist.", clientID)
+			xlog.Warnf("client id: '%s' doesn't exist.", clientID)
 			return nil
 		}
-		log.Error(err)
+		xlog.Error(err)
 		return nil
 	}
 
 	var client *model.Client
 	err = json.Unmarshal(jsonBytes, &client)
-	if u.LogError(err) {
+	if xerr.LogError(err) {
 		return nil
 	}
 
-	if u.IsBase64String(client.Secret) {
+	if xutils.IsBase64String(client.Secret) {
 		client.Secret = x.SecretEncryptor.DecryptStringToString(client.Secret)
 	}
 
@@ -53,7 +55,7 @@ func (x *RedisClientStore) GetClient(clientID string) model.IClient {
 
 func (x *RedisClientStore) GetClients() map[string]model.IClient {
 	maps, err := x.RedisClient.HGetAll(context.Background(), x.Key).Result()
-	if u.LogError(err) {
+	if xerr.LogError(err) {
 		return nil
 	}
 
@@ -61,8 +63,8 @@ func (x *RedisClientStore) GetClients() map[string]model.IClient {
 
 	for k, v := range maps {
 		var client *model.Client
-		err = json.Unmarshal(u.StrToBytes(v), &client)
-		if u.LogError(err) {
+		err = json.Unmarshal(xbytes.StrToBytes(v), &client)
+		if xerr.LogError(err) {
 			return nil
 		}
 		client.Secret = x.SecretEncryptor.DecryptStringToString(client.Secret)

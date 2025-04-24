@@ -3,9 +3,9 @@ package store
 import (
 	"time"
 
-	"github.com/Lukiya/oauth2go/model"
+	"github.com/DreamvatLab/go/xerr"
+	"github.com/DreamvatLab/oauth2go/model"
 	"github.com/muesli/cache2go"
-	"github.com/syncfuture/go/u"
 )
 
 const _authCodeKey = "AuthCode"
@@ -39,7 +39,7 @@ func (x *DefaultAuthorizationCodeStore) Save(code string, requestInfo *model.Tok
 
 func (x *DefaultAuthorizationCodeStore) GetThenRemove(code string) *model.TokenInfo {
 	cacheItem, err := x.cache.Delete(code)
-	if err == cache2go.ErrKeyNotFound || u.LogError(err) {
+	if err == cache2go.ErrKeyNotFound || xerr.LogError(err) {
 		return nil
 	}
 

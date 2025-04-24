@@ -5,12 +5,12 @@ import (
 	"encoding/json"
 	"time"
 
-	"github.com/Lukiya/oauth2go/model"
-	"github.com/Lukiya/oauth2go/security"
-	"github.com/Lukiya/oauth2go/store"
-	redis "github.com/redis/go-redis/v9"
-	"github.com/syncfuture/go/sredis"
-	"github.com/syncfuture/go/u"
+	"github.com/DreamvatLab/go/xerr"
+	"github.com/DreamvatLab/go/xredis"
+	"github.com/DreamvatLab/oauth2go/model"
+	"github.com/DreamvatLab/oauth2go/security"
+	"github.com/DreamvatLab/oauth2go/store"
+	"github.com/redis/go-redis/v9"
 )
 
 type RedisTokenStore struct {
@@ -19,17 +19,17 @@ type RedisTokenStore struct {
 	RedisClient     redis.UniversalClient
 }
 
-func NewRedisTokenStore(prefix string, secretEncryptor security.ISecretEncryptor, config *sredis.RedisConfig) store.ITokenStore {
+func NewRedisTokenStore(prefix string, secretEncryptor security.ISecretEncryptor, config *xredis.RedisConfig) store.ITokenStore {
 	return &RedisTokenStore{
 		Prefix:          prefix,
 		SecretEncryptor: secretEncryptor,
-		RedisClient:     sredis.NewClient(config),
+		RedisClient:     xredis.NewClient(config),
 	}
 }
 func (x *RedisTokenStore) SaveRefreshToken(refreshToken string, requestInfo *model.TokenInfo, expireSeconds int32) {
 	// serialize to json
 	bytes, err := json.Marshal(requestInfo)
-	if u.LogError(err) {
+	if xerr.LogError(err) {
 		return
 	}
 
@@ -38,11 +38,11 @@ func (x *RedisTokenStore) SaveRefreshToken(refreshToken string, requestInfo *mod
 
 	// save to redis
 	err = x.RedisClient.Set(context.Background(), x.Prefix+refreshToken, encodedRefreshToken, time.Second*time.Duration(expireSeconds)).Err()
-	u.LogError(err)
+	xerr.LogError(err)
 }
 func (x *RedisTokenStore) RemoveRefreshToken(refreshToken string) {
 	err := x.RedisClient.Del(context.Background(), x.Prefix+refreshToken).Err()
-	u.LogError(err)
+	xerr.LogError(err)
 }
 func (x *RedisTokenStore) GetThenRemoveTokenInfo(refreshToken string) *model.TokenInfo {
 	key := x.Prefix + refreshToken
@@ -53,7 +53,7 @@ func (x *RedisTokenStore) GetThenRemoveTokenInfo(refreshToken string) *model.Tok
 		if err == redis.Nil { // do not log this error
 			return nil
 		}
-		u.LogError(err)
+		xerr.LogError(err)
 		return nil
 	}
 
@@ -61,13 +61,13 @@ func (x *RedisTokenStore) GetThenRemoveTokenInfo(refreshToken string) *model.Tok
 	bytes := x.SecretEncryptor.DecryptStringToBytes(str)
 	var info *model.TokenInfo
 	err = json.Unmarshal(bytes, &info)
-	if u.LogError(err) {
+	if xerr.LogError(err) {
 		return nil
 	}
 
 	// delete used token
 	err = x.RedisClient.Del(context.Background(), key).Err()
-	u.LogError(err)
+	xerr.LogError(err)
 
 	return info
 }
