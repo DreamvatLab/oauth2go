@@ -2,10 +2,8 @@ module github.com/DreamvatLab/oauth2go
 
 go 1.24.2
 
-// replace github.com/DreamvatLab/go => ../go
-
 require (
-	github.com/DreamvatLab/go v1.0.1
+	github.com/DreamvatLab/go v1.0.2
 	github.com/muesli/cache2go v0.0.0-20221011235721-518229cd8021
 	github.com/pascaldekloe/jwt v1.12.0
 	github.com/redis/go-redis/v9 v9.7.3
