@@ -3,7 +3,7 @@ module github.com/DreamvatLab/oauth2go
 go 1.24.2
 
 require (
-	github.com/DreamvatLab/go v1.0.5
+	github.com/DreamvatLab/go v1.0.6
 	github.com/muesli/cache2go v0.0.0-20221011235721-518229cd8021
 	github.com/pascaldekloe/jwt v1.12.0
 	github.com/redis/go-redis/v9 v9.8.0
@@ -22,7 +22,6 @@ require (
 	github.com/gorilla/securecookie v1.1.2 // indirect
 	github.com/klauspost/compress v1.18.0 // indirect
 	github.com/natefinch/lumberjack v2.0.0+incompatible // indirect
-	github.com/patrickmn/go-cache v2.1.0+incompatible // indirect
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/tidwall/gjson v1.18.0 // indirect

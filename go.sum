@@ -1,7 +1,7 @@
 github.com/BurntSushi/toml v1.5.0 h1:W5quZX/G/csjUnuI8SUYlsHs9M38FC7znL0lIO+DvMg=
 github.com/BurntSushi/toml v1.5.0/go.mod h1:ukJfTF/6rtPPRCnwkur4qwRxa8vTRFBF0uk2lLoLwho=
-github.com/DreamvatLab/go v1.0.5 h1:qN0npCALjBW2ldbQASu4O0cUfhFQ9/6UcKGL6DoNliI=
-github.com/DreamvatLab/go v1.0.5/go.mod h1:OmG/d6bYOqNVoMyXJA9Ip+Adq6gHaZ41rYIF728vdSo=
+github.com/DreamvatLab/go v1.0.6 h1:LXSpuZIjnn+e/9oWjwhaCDfXgvLYY1L8R1RjM7aSGnE=
+github.com/DreamvatLab/go v1.0.6/go.mod h1:fjtwToUfdlysdW7xSQgP92Za+U3bKAABpaZaVgjzNWk=
 github.com/andybalholm/brotli v1.1.1 h1:PR2pgnyFznKEugtsUo0xLdDop5SKXd5Qf5ysW+7XdTA=
 github.com/andybalholm/brotli v1.1.1/go.mod h1:05ib4cKhjx3OQYUY22hTVd34Bc8upXjOLL2rKwwZBoA=
 github.com/bsm/ginkgo/v2 v2.12.0 h1:Ny8MWAHyOepLGlLKYmXG4IEkioBysk6GpaRTLC8zwWs=
@@ -28,8 +28,6 @@ github.com/natefinch/lumberjack v2.0.0+incompatible h1:4QJd3OLAMgj7ph+yZTuX13Ld4
 github.com/natefinch/lumberjack v2.0.0+incompatible/go.mod h1:Wi9p2TTF5DG5oU+6YfsmYQpsTIOm0B1VNzQg9Mw6nPk=
 github.com/pascaldekloe/jwt v1.12.0 h1:imQSkPOtAIBAXoKKjL9ZVJuF/rVqJ+ntiLGpLyeqMUQ=
 github.com/pascaldekloe/jwt v1.12.0/go.mod h1:LiIl7EwaglmH1hWThd/AmydNCnHf/mmfluBlNqHbk8U=
-github.com/patrickmn/go-cache v2.1.0+incompatible h1:HRMgzkcYKYpi3C8ajMPV8OFXaaRUnok+kx1WdO15EQc=
-github.com/patrickmn/go-cache v2.1.0+incompatible/go.mod h1:3Qf8kWWT7OJRJbdiICTKqZju1ZixQ/KpMGzzAfe6+WQ=
 github.com/pkg/errors v0.9.1 h1:FEBLx1zS214owpjy7qsBeixbURkuhQAwrK5UwLGTwt4=
 github.com/pkg/errors v0.9.1/go.mod h1:bwawxfHBFNV+L2hUp1rHADufV3IMtnDRdf1r5NINEl0=
 github.com/pmezard/go-difflib v1.0.0 h1:4DBwDE0NGyQoBHbLQYPwSUPoCMWR5BEzIk/f1lZbAQM=
