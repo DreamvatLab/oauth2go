@@ -3,11 +3,11 @@ module github.com/DreamvatLab/oauth2go
 go 1.24.2
 
 require (
-	github.com/DreamvatLab/go v1.0.2
+	github.com/DreamvatLab/go v1.0.5
 	github.com/muesli/cache2go v0.0.0-20221011235721-518229cd8021
 	github.com/pascaldekloe/jwt v1.12.0
-	github.com/redis/go-redis/v9 v9.7.3
-	github.com/sony/sonyflake v1.2.0
+	github.com/redis/go-redis/v9 v9.8.0
+	github.com/sony/sonyflake v1.2.1
 	github.com/stretchr/testify v1.10.0
 	github.com/valyala/fasthttp v1.61.0
 	golang.org/x/oauth2 v0.29.0
@@ -22,6 +22,7 @@ require (
 	github.com/gorilla/securecookie v1.1.2 // indirect
 	github.com/klauspost/compress v1.18.0 // indirect
 	github.com/natefinch/lumberjack v2.0.0+incompatible // indirect
+	github.com/patrickmn/go-cache v2.1.0+incompatible // indirect
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/tidwall/gjson v1.18.0 // indirect
