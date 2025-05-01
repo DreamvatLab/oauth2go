@@ -1,4 +1,4 @@
 
 git push
-git tag "v1.0.6"
+git tag "v1.0.7"
 git push --tags
