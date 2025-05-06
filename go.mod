@@ -3,14 +3,14 @@ module github.com/DreamvatLab/oauth2go
 go 1.24.2
 
 require (
-	github.com/DreamvatLab/go v1.0.9
+	github.com/DreamvatLab/go v1.0.16
 	github.com/muesli/cache2go v0.0.0-20221011235721-518229cd8021
 	github.com/pascaldekloe/jwt v1.12.0
 	github.com/redis/go-redis/v9 v9.8.0
 	github.com/sony/sonyflake v1.2.1
 	github.com/stretchr/testify v1.10.0
 	github.com/valyala/fasthttp v1.61.0
-	golang.org/x/oauth2 v0.29.0
+	golang.org/x/oauth2 v0.30.0
 	google.golang.org/protobuf v1.36.6
 )
 
@@ -30,6 +30,6 @@ require (
 	github.com/valyala/bytebufferpool v1.0.0 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
 	go.uber.org/zap v1.27.0 // indirect
-	golang.org/x/crypto v0.37.0 // indirect
+	golang.org/x/crypto v0.38.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
