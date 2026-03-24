@@ -1,5 +1,3 @@
-github.com/DreamvatLab/go v1.0.20 h1:/npXpjqZPAs8tBnpqok2I8B/ShyoxFx6j3NsKHVpbEo=
-github.com/DreamvatLab/go v1.0.20/go.mod h1:VeoZrFp3FhKzEuzNt4Hk0bZzDEaUrxWvF3yQZwVZ3ek=
 github.com/andybalholm/brotli v1.2.0 h1:ukwgCxwYrmACq68yiUqwIWnGY0cTPox/M94sVwToPjQ=
 github.com/andybalholm/brotli v1.2.0/go.mod h1:rzTDkvFWvIrjDXZHkuS16NPggd91W3kUSvPlQ1pLaKY=
 github.com/bsm/ginkgo/v2 v2.12.0 h1:Ny8MWAHyOepLGlLKYmXG4IEkioBysk6GpaRTLC8zwWs=
