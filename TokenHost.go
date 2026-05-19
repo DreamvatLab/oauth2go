@@ -2,10 +2,10 @@ package oauth2go
 
 import (
 	"crypto/rsa"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
-	"net/url"
 	"strings"
 
 	"github.com/DreamvatLab/go/xbytes"
@@ -67,6 +67,7 @@ type (
 		LoginEndpoint          string
 		LogoutEndpoint         string
 		PkceRequired           bool
+		AllowPlainPkce         bool
 		PrivateKey             *rsa.PrivateKey
 		ClientStore            store.IClientStore
 		TokenStore             store.ITokenStore
@@ -194,10 +195,18 @@ func (x *TokenHost) AuthorizeRequestHandler(ctx *fasthttp.RequestCtx) {
 		return
 	}
 
+	// RFC 6749 §10.12: 'state' is RECOMMENDED for CSRF protection. Warn (don't block)
+	// when missing so operators can spot non-compliant clients.
+	if state == "" {
+		xlog.Warnf("/authorize request missing 'state' parameter (client_id=%s)", clientID)
+	}
+
 	username := x.getEncryptedCookie(ctx, x.AuthCookieName)
 	if username == "" {
-		returnURL := url.QueryEscape(xbytes.BytesToStr(ctx.URI().RequestURI()))
-		targetURL := fmt.Sprintf("%s?%s=%s", x.LoginEndpoint, core.Form_ReturnUrl, returnURL)
+		returnURL := xbytes.BytesToStr(ctx.URI().RequestURI())
+		targetURL := core.AppendQuery(x.LoginEndpoint,
+			[2]string{core.Form_ReturnUrl, returnURL},
+		)
 		core.Redirect(ctx, targetURL)
 		return
 	}
@@ -226,12 +235,9 @@ func (x *TokenHost) AuthorizationCodeRequestHandler(ctx *fasthttp.RequestCtx, cl
 				Username:    username,
 			},
 		)
-		targetURL := fmt.Sprintf("%s?%s=%s&%s=%s",
-			redirectURI,
-			core.Form_Code,
-			code,
-			core.Form_State,
-			url.QueryEscape(state),
+		targetURL := core.AppendQuery(redirectURI,
+			[2]string{core.Form_Code, code},
+			[2]string{core.Form_State, state},
 		)
 		core.Redirect(ctx, targetURL)
 		return
@@ -252,8 +258,17 @@ func (x *TokenHost) AuthorizationCodeRequestHandler(ctx *fasthttp.RequestCtx, cl
 	// client provided pkce challenge
 	codeChallengeMethod := xbytes.BytesToStr(ctx.FormValue(core.Form_CodeChallengeMethod))
 	if codeChallengeMethod == "" {
-		codeChallengeMethod = core.Pkce_Plain
-	} else if codeChallengeMethod != core.Pkce_Plain && codeChallengeMethod != core.Pkce_S256 {
+		// secure default per OAuth 2.1 — plain is effectively no PKCE
+		codeChallengeMethod = core.Pkce_S256
+	} else if codeChallengeMethod == core.Pkce_Plain {
+		if !x.AllowPlainPkce {
+			err := errors.New(core.Err_invalid_request)
+			errDesc := errors.New("code_challenge_method 'plain' is not allowed, use 'S256'")
+			xlog.Warn(errDesc.Error())
+			x.writeError(ctx, http.StatusBadRequest, err, errDesc)
+			return
+		}
+	} else if codeChallengeMethod != core.Pkce_S256 {
 		err := errors.New(core.Err_invalid_request)
 		errDesc := errors.New("transform algorithm not supported")
 		xlog.Warn(errDesc.Error())
@@ -275,16 +290,12 @@ func (x *TokenHost) AuthorizationCodeRequestHandler(ctx *fasthttp.RequestCtx, cl
 		},
 	)
 
-	targetURL := fmt.Sprintf("%s?%s=%s&%s=%s&%s=%s&%s=%s",
-		redirectURI,
-		core.Form_Code,
-		code,
-		core.Form_State,
-		url.QueryEscape(state),
-		core.Form_CodeChallenge,
-		url.QueryEscape(codeChallenge),
-		core.Form_CodeChallengeMethod,
-		codeChallengeMethod,
+	// RFC 6749 §4.1.2: authorization response carries only 'code' and 'state'.
+	// Echoing code_challenge/code_challenge_method to the client leaks them into
+	// access logs and Referer headers with no benefit.
+	targetURL := core.AppendQuery(redirectURI,
+		[2]string{core.Form_Code, code},
+		[2]string{core.Form_State, state},
 	)
 	core.Redirect(ctx, targetURL)
 }
@@ -304,18 +315,14 @@ func (x *TokenHost) ImplicitTokenRequestHandler(ctx *fasthttp.RequestCtx, client
 		return
 	}
 
-	targetURL := fmt.Sprintf("%s?%s=%s&%s=%s&%s=%d&%s=%s&%s=%s",
-		redirectURI,
-		core.Form_AccessToken,
-		token,
-		core.Form_TokenType,
-		core.Form_TokenTypeBearer,
-		core.Form_ExpiresIn,
-		client.GetAccessTokenExpireSeconds(),
-		core.Form_Scope,
-		url.QueryEscape(scopesStr),
-		core.Form_State,
-		url.QueryEscape(state),
+	// RFC 6749 §4.2.2: implicit flow MUST return token in URL fragment, not query.
+	// Fragments are not sent to servers, kept out of access logs and Referer headers.
+	targetURL := core.AppendFragment(redirectURI,
+		[2]string{core.Form_AccessToken, token},
+		[2]string{core.Form_TokenType, core.Form_TokenTypeBearer},
+		[2]string{core.Form_ExpiresIn, fmt.Sprintf("%d", client.GetAccessTokenExpireSeconds())},
+		[2]string{core.Form_Scope, scopesStr},
+		[2]string{core.Form_State, state},
 	)
 
 	core.Redirect(ctx, targetURL)
@@ -400,12 +407,9 @@ func (x *TokenHost) EndSessionRequestHandler(ctx *fasthttp.RequestCtx) {
 	ctx.Response.Header.SetCookie(c)
 
 	// redirect to client
-	targetURL := fmt.Sprintf("%s?%s=%s&%s=%s",
-		redirectURI,
-		core.Form_State,
-		url.QueryEscape(state),
-		core.Form_EndSessionID,
-		url.QueryEscape(endSessionID),
+	targetURL := core.AppendQuery(redirectURI,
+		[2]string{core.Form_State, state},
+		[2]string{core.Form_EndSessionID, endSessionID},
 	)
 	core.Redirect(ctx, targetURL)
 }
@@ -449,6 +453,9 @@ func (x *TokenHost) ClearTokenRequestHandler(ctx *fasthttp.RequestCtx) {
 
 	// remove refresh token
 	x.TokenStore.RemoveRefreshToken(oldRefreshToken)
+
+	// signal success explicitly so callers can distinguish "cleared" from "middleware ate it"
+	ctx.SetStatusCode(http.StatusOK)
 }
 
 func (x *TokenHost) getEncryptedCookie(ctx *fasthttp.RequestCtx, name string) string {
@@ -704,11 +711,23 @@ func (x *TokenHost) writeToken(ctx *fasthttp.RequestCtx, token, scopesStr string
 	ctx.Response.Header.Add(core.Header_CacheControl, core.Header_CacheControl_Value)
 	ctx.Response.Header.Add(core.Header_Pragma, core.Header_Pragma_Value)
 
-	if refreshToken == "" {
-		ctx.WriteString(fmt.Sprintf(core.Format_Token1, token, expireSeconds, scopesStr))
-	} else {
-		ctx.WriteString(fmt.Sprintf(core.Format_Token2, token, refreshToken, expireSeconds, scopesStr))
+	payload := map[string]interface{}{
+		core.Form_AccessToken: token,
+		core.Form_ExpiresIn:   expireSeconds,
+		core.Form_Scope:       scopesStr,
+		core.Form_TokenType:   core.Form_TokenTypeBearer,
 	}
+	if refreshToken != "" {
+		payload[core.Form_RefreshToken] = refreshToken
+	}
+
+	body, err := json.Marshal(payload)
+	if err != nil {
+		xlog.Error(err)
+		ctx.SetStatusCode(http.StatusInternalServerError)
+		return
+	}
+	ctx.Write(body)
 }
 
 // writeError handle error
@@ -722,7 +741,15 @@ func (x *TokenHost) writeError(ctx *fasthttp.RequestCtx, statusCode int, err, er
 	ctx.Response.Header.Add(core.Header_CacheControl, core.Header_CacheControl_Value)
 	ctx.Response.Header.Add(core.Header_Pragma, core.Header_Pragma_Value)
 
-	ctx.WriteString(fmt.Sprintf(core.Format_Error, err.Error(), errDesc.Error()))
+	body, mErr := json.Marshal(map[string]string{
+		"error":             err.Error(),
+		"error_description": errDesc.Error(),
+	})
+	if mErr != nil {
+		xlog.Error(mErr)
+		return
+	}
+	ctx.Write(body)
 }
 
 // // getSurferID get surfer id

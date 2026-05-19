@@ -1,6 +1,7 @@
 package security
 
 import (
+	"crypto/subtle"
 	"encoding/base64"
 	"errors"
 	"fmt"
@@ -63,30 +64,40 @@ func (x *DefaultClientValidator) exractClientCredentialsFromHeader(ctx *fasthttp
 		return
 	}
 
-	authArray := strings.Split(authorzation, core.Seperator_Scope)
-	if len(authArray) != 2 || authArray[1] == "" {
+	// RFC 7617 — only the "Basic" scheme should be parsed here. "Bearer" / "Negotiate" etc.
+	// must not fall through to Basic decoding.
+	const basicPrefix = "Basic "
+	if !strings.HasPrefix(strings.ToLower(authorzation), strings.ToLower(basicPrefix)) {
+		err = errors.New(core.Err_invalid_request)
+		errDesc = errors.New("authorization scheme is not Basic")
+		return
+	}
+	encoded := strings.TrimSpace(authorzation[len(basicPrefix):])
+	if encoded == "" {
 		err = errors.New(core.Err_invalid_request)
 		errDesc = errors.New("invalid authorization header format")
 		return
 	}
 
-	authBytes, err := base64.StdEncoding.DecodeString(authArray[1]) // has padding, do not use RawURLEncoding
+	// RFC 7617 mandates standard base64 (with '+'/'/'/'=' padding).
+	authBytes, err := base64.StdEncoding.DecodeString(encoded)
 	if xerr.LogError(err) {
 		return
 	}
 	authStr := xbytes.BytesToStr(authBytes)
-	authArray = strings.Split(authStr, core.Seperators_Auth)
 
-	if len(authArray) != 2 || authArray[0] == "" || authArray[1] == "" {
+	// Password is allowed to contain ':' — split on the FIRST ':' only.
+	colonIdx := strings.IndexByte(authStr, ':')
+	if colonIdx <= 0 || colonIdx == len(authStr)-1 {
 		err = errors.New(core.Err_invalid_request)
-		errDesc = errors.New("invalid authorization header segments length")
+		errDesc = errors.New("invalid authorization header segments")
 		xlog.Warn(errDesc.Error())
 		return
 	}
 
 	r = &model.Credential{
-		Username: authArray[0],
-		Password: authArray[1],
+		Username: authStr[:colonIdx],
+		Password: authStr[colonIdx+1:],
 	}
 	return
 }
@@ -131,12 +142,13 @@ func (x *DefaultClientValidator) VerifyCredential(credential *model.Credential) 
 		return client, nil, nil
 	}
 
-	// Check if the secret matches the client secret
-	if credential.Password != client.GetSecret() {
+	// Constant-time comparison to prevent timing side channel (Bleichenbacher / CRIME-style probes).
+	// subtle.ConstantTimeCompare returns 0 on length mismatch and on byte mismatch, taking
+	// time proportional to the shorter input — adequate for this use.
+	if subtle.ConstantTimeCompare(xbytes.StrToBytes(credential.Password), xbytes.StrToBytes(client.GetSecret())) != 1 {
 		err := errors.New(core.Err_invalid_client)
 		errDesc := fmt.Errorf("password for client '%s' is incorrect", credential.Username)
 		xlog.Warn(errDesc.Error())
-		xlog.Debugf("%s secret: %s, provided secret: %s", client.GetID(), client.GetSecret(), credential.Password)
 		return nil, err, errDesc
 	}
 

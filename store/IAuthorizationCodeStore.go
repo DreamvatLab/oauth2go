@@ -43,6 +43,13 @@ func (x *DefaultAuthorizationCodeStore) GetThenRemove(code string) *model.TokenI
 		return nil
 	}
 
+	// cache2go only sweeps lazily on a timer (default 60s window). Re-check expiry
+	// here so a code can't be redeemed after its TTL just because the sweeper hasn't
+	// run yet.
+	if time.Now().After(cacheItem.AccessedOn().Add(cacheItem.LifeSpan())) {
+		return nil
+	}
+
 	r := cacheItem.Data()
 
 	return r.(*model.TokenInfo)

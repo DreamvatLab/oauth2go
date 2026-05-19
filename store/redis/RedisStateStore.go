@@ -17,8 +17,8 @@ type RedisStateStore struct {
 	RedisClient     redis.UniversalClient
 }
 
-func NewRedisStateStore(prefix string, secretEncryptor security.ISecretEncryptor, config *xredis.RedisConfig) store.ITokenStore {
-	return &RedisTokenStore{
+func NewRedisStateStore(prefix string, secretEncryptor security.ISecretEncryptor, config *xredis.RedisConfig) store.IStateStore {
+	return &RedisStateStore{
 		Prefix:          prefix,
 		SecretEncryptor: secretEncryptor,
 		RedisClient:     xredis.NewClient(config),
@@ -29,13 +29,16 @@ func (x *RedisStateStore) Save(key, value string, expireSeconds int) {
 	err := x.RedisClient.Set(context.Background(), x.Prefix+key, value, time.Duration(expireSeconds)*time.Second).Err()
 	xerr.LogError(err)
 }
-func (x *RedisStateStore) GetThenRemove(key string) (r string) {
-	ctx := context.Background()
-	key = x.Prefix + key
-	r = x.RedisClient.Get(ctx, key).String()
-	if r != "" {
-		err := x.RedisClient.Del(ctx, key).Err()
+func (x *RedisStateStore) GetThenRemove(key string) string {
+	// Atomic read+delete (Redis 6.2+ GETDEL) — prevents the state value from being
+	// observed and consumed twice in concurrent end-session flows.
+	r, err := x.RedisClient.GetDel(context.Background(), x.Prefix+key).Result()
+	if err != nil {
+		if err == redis.Nil {
+			return ""
+		}
 		xerr.LogError(err)
+		return ""
 	}
-	return
+	return r
 }

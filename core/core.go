@@ -5,6 +5,8 @@ import (
 	"crypto/sha256"
 	"encoding/base64"
 	"fmt"
+	"net/url"
+	"strings"
 
 	"github.com/DreamvatLab/go/xbytes"
 	"github.com/DreamvatLab/go/xsync"
@@ -154,6 +156,54 @@ func Redirect(ctx *fasthttp.RequestCtx, url string) {
 // 		xerr.LogError(err)
 // 	}
 // }
+
+// AppendQuery appends key/value pairs to a base URL as query string parameters.
+// It safely handles URLs that already contain a '?' or '#', URL-encodes both
+// keys and values, and silently skips pairs whose value is empty.
+func AppendQuery(base string, kvs ...[2]string) string {
+	return appendParams(base, kvs, '?')
+}
+
+// AppendFragment appends key/value pairs to a base URL as URL fragment
+// parameters (separated by '&' after the '#'), per RFC 6749 §4.2.2.
+// Keys and values are URL-encoded; empty values are skipped.
+func AppendFragment(base string, kvs ...[2]string) string {
+	return appendParams(base, kvs, '#')
+}
+
+func appendParams(base string, kvs [][2]string, separator byte) string {
+	var sb strings.Builder
+	sb.WriteString(base)
+
+	first := true
+	switch separator {
+	case '?':
+		if strings.ContainsRune(base, '?') {
+			first = false
+		}
+	case '#':
+		if strings.ContainsRune(base, '#') {
+			first = false
+		}
+	}
+
+	for _, kv := range kvs {
+		if kv[1] == "" {
+			continue
+		}
+		if first {
+			sb.WriteByte(separator)
+			first = false
+		} else {
+			sb.WriteByte('&')
+		}
+		sb.WriteString(url.QueryEscape(kv[0]))
+		sb.WriteByte('=')
+		sb.WriteString(url.QueryEscape(kv[1]))
+	}
+
+	return sb.String()
+}
 
 func Random64String() string {
 	randomNumber := _bytesPool.GetBytes()

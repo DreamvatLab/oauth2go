@@ -47,8 +47,10 @@ func (x *RedisTokenStore) RemoveRefreshToken(refreshToken string) {
 func (x *RedisTokenStore) GetThenRemoveTokenInfo(refreshToken string) *model.TokenInfo {
 	key := x.Prefix + refreshToken
 
-	// get from redis
-	str, err := x.RedisClient.Get(context.Background(), key).Result()
+	// Atomic read+delete (Redis 6.2+ GETDEL) — closes a race where two concurrent
+	// refresh requests could both observe the same token before either deletes it,
+	// defeating refresh-token rotation.
+	str, err := x.RedisClient.GetDel(context.Background(), key).Result()
 	if err != nil {
 		if err == redis.Nil { // do not log this error
 			return nil
@@ -64,10 +66,6 @@ func (x *RedisTokenStore) GetThenRemoveTokenInfo(refreshToken string) *model.Tok
 	if xerr.LogError(err) {
 		return nil
 	}
-
-	// delete used token
-	err = x.RedisClient.Del(context.Background(), key).Err()
-	xerr.LogError(err)
 
 	return info
 }
