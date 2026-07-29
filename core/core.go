@@ -3,6 +3,7 @@ package core
 import (
 	"crypto/rand"
 	"crypto/sha256"
+	"crypto/subtle"
 	"encoding/base64"
 	"fmt"
 	"net/url"
@@ -110,6 +111,13 @@ func ToSHA256Base64URL(in string) string {
 	r := h.Sum(nil)
 
 	return base64.RawURLEncoding.EncodeToString(r)
+}
+
+// FixedTimeCompare reports whether a and b are equal using a constant-time comparison,
+// so the time taken does not leak how many leading bytes matched. Used for comparing
+// PKCE challenges and state values (timing-attack defense).
+func FixedTimeCompare(a, b string) bool {
+	return subtle.ConstantTimeCompare(xbytes.StrToBytes(a), xbytes.StrToBytes(b)) == 1
 }
 
 // GenerateID _

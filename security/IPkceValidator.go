@@ -24,16 +24,17 @@ func (x *DefaultPkceValidator) Verify(codeVerifier, codeChallenge, codeChallenge
 
 	r := false
 
-	// check code_challenge_method
+	// check code_challenge_method (constant-time compares to avoid leaking match length;
+	// never log the code_verifier — it is a secret, logging it defeats PKCE)
 	if codeChallengeMethod == core.Pkce_Plain {
-		r = codeVerifier == codeChallenge
+		r = core.FixedTimeCompare(codeVerifier, codeChallenge)
 		if !r {
-			xlog.Debugf("code_challenge is not equal to code_verifier: %s != %s", codeChallenge, codeVerifier)
+			xlog.Debug("PKCE plain verification failed")
 		}
 	} else if codeChallengeMethod == core.Pkce_S256 {
-		r = codeChallenge == core.ToSHA256Base64URL(codeVerifier)
+		r = core.FixedTimeCompare(codeChallenge, core.ToSHA256Base64URL(codeVerifier))
 		if !r {
-			xlog.Debugf("code_challenge is not equal to SHA256(code_verifier): %s != %s", codeChallenge, core.ToSHA256Base64URL(codeVerifier))
+			xlog.Debug("PKCE S256 verification failed")
 		}
 	} else {
 		xlog.Warnf("Unsupported code_challenge_method: %s", codeChallengeMethod)

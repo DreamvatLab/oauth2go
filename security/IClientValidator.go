@@ -111,13 +111,10 @@ func (x *DefaultClientValidator) exractClientCredentialsFromBody(ctx *fasthttp.R
 		return
 	}
 
+	// A missing secret is allowed here: public clients (SPA/native) authenticate via PKCE
+	// and send no secret. VerifyCredential decides based on client.GetIsPublic() — a confidential
+	// client with an empty secret fails the constant-time secret check and is rejected there.
 	secret := xbytes.BytesToStr(ctx.FormValue(core.Form_ClientSecret))
-	if secret == "" {
-		err = errors.New(core.Err_invalid_request)
-		errDesc = errors.New("client secret is missing")
-		return
-	}
-
 	r = &model.Credential{
 		Username: id,
 		Password: secret,

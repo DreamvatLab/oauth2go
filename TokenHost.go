@@ -444,9 +444,9 @@ func (x *TokenHost) ClearTokenRequestHandler(ctx *fasthttp.RequestCtx) {
 		return
 	}
 
-	// verify state
+	// verify state (constant-time to avoid leaking how much of the value matched)
 	storedState := x.StateStore.GetThenRemove(credential.Username + ":" + endSessionID)
-	if storedState == "" || storedState != state {
+	if storedState == "" || !core.FixedTimeCompare(storedState, state) {
 		x.writeError(ctx, http.StatusBadRequest, errors.New("invalid state"), nil)
 		return
 	}
