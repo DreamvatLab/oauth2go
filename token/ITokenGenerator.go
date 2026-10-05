@@ -2,6 +2,7 @@ package token
 
 import (
 	"crypto/rsa"
+	"errors"
 
 	"github.com/DreamvatLab/go/xbytes"
 	"github.com/DreamvatLab/oauth2go/core"
@@ -33,7 +34,14 @@ func (x *DefaultTokenGenerator) GenerateAccessToken(ctx *fasthttp.RequestCtx, gr
 	claims := new(jwt.Claims)
 	claims.KeyID = core.GenerateID()
 	// claims.Set = *x.ClaimsGenerator.Generate(ctx, grantType, client, scopes, username)
-	claims.Set = *x.ClaimsGenerator.Generate(grantType, client, scopes, username)
+	set, err := x.ClaimsGenerator.Generate(grantType, client, scopes, username)
+	if err != nil {
+		return "", err
+	}
+	if set == nil {
+		return "", errors.New("claims generator returned nil claims")
+	}
+	claims.Set = *set
 	if subValue, ok := claims.Set["sub"]; ok {
 		if sub, b := subValue.(string); b {
 			claims.Subject = sub

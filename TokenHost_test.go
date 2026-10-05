@@ -4,6 +4,7 @@ import (
 	"crypto/rand"
 	"crypto/rsa"
 	"errors"
+	"fmt"
 	"strings"
 	"testing"
 
@@ -11,6 +12,7 @@ import (
 	"github.com/DreamvatLab/oauth2go/model"
 	"github.com/DreamvatLab/oauth2go/security"
 	"github.com/DreamvatLab/oauth2go/store"
+	"github.com/DreamvatLab/oauth2go/token"
 	"github.com/stretchr/testify/assert"
 	"github.com/valyala/fasthttp"
 )
@@ -58,9 +60,15 @@ func (s *fakeAuthCodeStore) GetThenRemove(code string) *model.TokenInfo {
 	return info
 }
 
-type fakeTokenGenerator struct{ Access string }
+type fakeTokenGenerator struct {
+	Access string
+	Err    error
+}
 
 func (g *fakeTokenGenerator) GenerateAccessToken(ctx *fasthttp.RequestCtx, grantType string, client model.IClient, scopes []string, username string) (string, error) {
+	if g.Err != nil {
+		return "", g.Err
+	}
 	return g.Access, nil
 }
 func (g *fakeTokenGenerator) GenerateRefreshToken() string { return "fake-refresh" }
@@ -71,9 +79,9 @@ func (g *fakeAuthCodeGenerator) Generate() string { return g.Code }
 
 type fakeClaimsGenerator struct{}
 
-func (g *fakeClaimsGenerator) Generate(grantType string, client model.IClient, scopes []string, username string) *map[string]interface{} {
+func (g *fakeClaimsGenerator) Generate(grantType string, client model.IClient, scopes []string, username string) (*map[string]interface{}, error) {
 	m := map[string]interface{}{"sub": username}
-	return &m
+	return &m, nil
 }
 
 // fakeCookieEncryptor passes the value through unchanged so handler tests can
@@ -511,6 +519,125 @@ type refreshableTokenStore struct {
 
 func (s *refreshableTokenStore) GetThenRemoveTokenInfo(rt string) *model.TokenInfo {
 	return s.info
+}
+
+// =====================================================================
+//   Subject denial: ClaimsGenerator returns token.ErrSubjectDenied
+//   (e.g. the user has been disabled) -> no token is issued.
+// =====================================================================
+
+func TestTokenEndpoint_RefreshTokenGrant_SubjectDenied(t *testing.T) {
+	c := newClient(core.GrantType_AuthorizationCode, core.GrantType_RefreshToken)
+	h, _, tokStore, tokGen, _ := newHost(t, c)
+	h.TokenStore = &refreshableTokenStore{
+		info:           &model.TokenInfo{ClientID: c.GetID(), Scopes: "read", Username: "alice"},
+		fakeTokenStore: tokStore,
+	}
+	tokGen.Err = fmt.Errorf("user 'alice' is inactive: %w", token.ErrSubjectDenied)
+
+	ctx := newFormCtx(map[string]string{
+		core.Form_GrantType:    core.GrantType_RefreshToken,
+		core.Form_ClientID:     c.GetID(),
+		core.Form_ClientSecret: c.GetSecret(),
+		core.Form_RefreshToken: "old-rt",
+	})
+
+	h.TokenRequestHandler(ctx)
+
+	assert.Equal(t, fasthttp.StatusBadRequest, ctx.Response.StatusCode())
+	body := string(ctx.Response.Body())
+	assert.Contains(t, body, `"error":"`+core.Err_invalid_grant+`"`)
+	assert.NotContains(t, body, "access_token")
+	assert.Empty(t, tokStore.Saved, "no new refresh token may be issued for a denied subject")
+}
+
+func TestTokenEndpoint_AuthorizationCodeGrant_SubjectDenied(t *testing.T) {
+	c := newClient(core.GrantType_AuthorizationCode, core.GrantType_RefreshToken)
+	h, codeStore, tokStore, tokGen, _ := newHost(t, c)
+	h.PkceRequired = false
+	tokGen.Err = token.ErrSubjectDenied
+
+	codeStore.Save("the-code", &model.TokenInfo{
+		ClientID:    c.GetID(),
+		Scopes:      "read",
+		RedirectUri: "https://app.example/cb",
+		Username:    "alice",
+	})
+
+	ctx := newFormCtx(map[string]string{
+		core.Form_GrantType:    core.GrantType_AuthorizationCode,
+		core.Form_ClientID:     c.GetID(),
+		core.Form_ClientSecret: c.GetSecret(),
+		core.Form_Code:         "the-code",
+		core.Form_RedirectUri:  "https://app.example/cb",
+	})
+
+	h.TokenRequestHandler(ctx)
+
+	assert.Equal(t, fasthttp.StatusBadRequest, ctx.Response.StatusCode())
+	assert.Contains(t, string(ctx.Response.Body()), `"error":"`+core.Err_invalid_grant+`"`)
+	assert.Empty(t, tokStore.Saved)
+}
+
+func TestTokenEndpoint_PasswordGrant_SubjectDenied(t *testing.T) {
+	c := newClient(core.GrantType_ResourceOwner)
+	h, _, _, tokGen, _ := newHost(t, c)
+	h.ResourceOwnerValidator = alwaysValidResourceOwner{}
+	tokGen.Err = token.ErrSubjectDenied
+
+	ctx := newFormCtx(map[string]string{
+		core.Form_GrantType:    core.GrantType_ResourceOwner,
+		core.Form_ClientID:     c.GetID(),
+		core.Form_ClientSecret: c.GetSecret(),
+		core.Form_Scope:        "read",
+		core.Form_Username:     "alice",
+		core.Form_Password:     "pw",
+	})
+
+	h.TokenRequestHandler(ctx)
+
+	assert.Equal(t, fasthttp.StatusBadRequest, ctx.Response.StatusCode())
+	assert.Contains(t, string(ctx.Response.Body()), `"error":"`+core.Err_invalid_grant+`"`)
+}
+
+func TestImplicit_SubjectDenied(t *testing.T) {
+	c := newClient(core.GrantType_Implicit)
+	h, _, _, tokGen, _ := newHost(t, c)
+	tokGen.Err = token.ErrSubjectDenied
+
+	ctx := newAuthorizeCtx(map[string]string{
+		core.Form_ResponseType: core.ResponseType_Token,
+		core.Form_ClientID:     c.GetID(),
+		core.Form_RedirectUri:  "https://app.example/cb",
+		core.Form_Scope:        "read",
+		core.Form_State:        "st-1",
+	})
+
+	h.AuthorizeRequestHandler(ctx)
+
+	assert.Equal(t, fasthttp.StatusBadRequest, ctx.Response.StatusCode())
+	assert.Contains(t, string(ctx.Response.Body()), `"error":"`+core.Err_access_denied+`"`)
+	assert.Empty(t, location(t, ctx), "no redirect carrying a token")
+}
+
+func TestTokenEndpoint_GeneratorFailure_StaysServerError(t *testing.T) {
+	c := newClient(core.GrantType_ResourceOwner)
+	h, _, _, tokGen, _ := newHost(t, c)
+	h.ResourceOwnerValidator = alwaysValidResourceOwner{}
+	tokGen.Err = errors.New("user service unavailable")
+
+	ctx := newFormCtx(map[string]string{
+		core.Form_GrantType:    core.GrantType_ResourceOwner,
+		core.Form_ClientID:     c.GetID(),
+		core.Form_ClientSecret: c.GetSecret(),
+		core.Form_Scope:        "read",
+		core.Form_Username:     "alice",
+		core.Form_Password:     "pw",
+	})
+
+	h.TokenRequestHandler(ctx)
+
+	assert.Contains(t, string(ctx.Response.Body()), `"error":"`+core.Err_server_error+`"`)
 }
 
 func TestTokenEndpoint_AuthorizationCodeGrant_PkceMismatchFails(t *testing.T) {

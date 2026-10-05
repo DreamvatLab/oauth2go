@@ -311,7 +311,7 @@ func (x *TokenHost) ImplicitTokenRequestHandler(ctx *fasthttp.RequestCtx, client
 		username,
 	)
 	if err != nil {
-		x.writeError(ctx, http.StatusBadRequest, errors.New(core.Err_server_error), err)
+		x.writeTokenGenerationError(ctx, core.Err_access_denied, err)
 		return
 	}
 
@@ -533,7 +533,7 @@ func (x *TokenHost) handleClientCredentialsTokenRequest(ctx *fasthttp.RequestCtx
 		client.GetID(),
 	)
 	if err != nil {
-		x.writeError(ctx, http.StatusBadRequest, errors.New(core.Err_server_error), err)
+		x.writeTokenGenerationError(ctx, core.Err_invalid_grant, err)
 		return
 	}
 
@@ -683,7 +683,7 @@ func (x *TokenHost) issueTokenByRequestInfo(ctx *fasthttp.RequestCtx, grantType 
 		tokenInfo.Username,
 	)
 	if err != nil {
-		x.writeError(ctx, http.StatusBadRequest, errors.New(core.Err_server_error), err)
+		x.writeTokenGenerationError(ctx, core.Err_invalid_grant, err)
 		return
 	}
 
@@ -728,6 +728,17 @@ func (x *TokenHost) writeToken(ctx *fasthttp.RequestCtx, token, scopesStr string
 		return
 	}
 	ctx.Write(body)
+}
+
+// writeTokenGenerationError answers a failed GenerateAccessToken: ErrSubjectDenied becomes deniedCode
+// (invalid_grant at the token endpoint, access_denied at the authorize endpoint), anything else stays server_error.
+func (x *TokenHost) writeTokenGenerationError(ctx *fasthttp.RequestCtx, deniedCode string, err error) {
+	if errors.Is(err, token.ErrSubjectDenied) {
+		xlog.Warn(err.Error())
+		x.writeError(ctx, http.StatusBadRequest, errors.New(deniedCode), err)
+		return
+	}
+	x.writeError(ctx, http.StatusBadRequest, errors.New(core.Err_server_error), err)
 }
 
 // writeError handle error
